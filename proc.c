@@ -88,7 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-
+  p->priorVal = 15;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -311,6 +311,14 @@ wait(void)
   }
 }
 
+void
+set_prior(int prior_lvl)
+{
+	struct proc *curproc = myproc();
+	curproc->priorVal = prior_lvl;
+	yield();
+}
+
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
@@ -325,17 +333,31 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
-  
+  int highestPrio; 
   for(;;){
     // Enable interrupts on this processor.
     sti();
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+    highestPrio = 32;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
-
+      if(p->priorVal < highestPrio){
+	highestPrio = p->priorVal;
+      }
+    } 
+    for(p = ptable.proc; p< &ptable.proc[NPROC]; p++){
+    	if(p->state != RUNNABLE)
+		continue;
+	if(p->priorVal != highestPrio && p->priorVal > 0){
+	  p->priorVal = p->priorVal - 1; //increase priority
+	  continue;
+	}
+	else if(p->priorVal == highestPrio && p->priorVal < 32){
+	  p->priorVal = p->priorVal + 1; //decrease priority
+  	}
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.

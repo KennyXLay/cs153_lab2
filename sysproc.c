@@ -27,6 +27,16 @@ sys_wait(void)
 }
 
 int
+sys_set_prior(void)
+{
+	int prio;
+	if(argint(0,  &prio) < 0)
+		return -1;
+	set_prior(prio);
+	return 0;
+}
+
+int
 sys_kill(void)
 {
   int pid;
